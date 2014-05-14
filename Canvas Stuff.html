@@ -1,0 +1,390 @@
+<!--
+Course: 		CIS 270
+Assignment: 	SKI
+Group 5:  		Florian,   Jay J,     Abdul A
+Date:			04/23/12
+Purpose:		The goal of this assignment is to understand and document all
+				the code of the ski game
+				
+				
+Data structure: The code creates the "illusion" because only the obstacles are moving 
+				towards the skier while the skier always stays in the same place.
+				(========== So, it looks like the skier is going down. ==========)
+				Going to left and right is also an "illusion"
+				Actually, the skier is staying the certain position.
+				That means  the X-location of skier is never changed,
+				BUT the X-location of canvas is changed.
+				(========== So, it looks like the skier is going left or right ==========)
+				
+				locX = [0, 960], loxY = 100(constant)
+				-------------------------------------------------------
+				|-320(0)											  |
+				|													  |
+				|			-------------------------------			  |
+				|			|					locX	  |			  |
+				|			|							  |			  |
+				|			|		Canvas				  |			  |
+				|			-------------------------------			  |
+				|			0							  640		  |
+				|													  |
+				-------------------------------------------------------
+																	960(1280)
+																	
+																	
+				The way to calculate distance between the skier and obstacle : Pythagoras
+				Pythagoras theorem : In a right-angled triangle, 
+				the area of the square on the hypotenuse(C) (the side opposite the right angle) is 
+				equal to the sum of the areas of the squares of the other two sides(A and B)
+				That is, A^2 + B^2 = C^2
+				
+											 *<-(skier)
+											/|
+										   / | 
+										C /  |
+										 /   | B
+										/    |
+						   obstacle -> *_____|
+										  A			C is the distance between the skier and obstacle
+-->
+
+<!-- saved from url=(0039)http://timelessname.com/canvas/skifree/ -->
+<html>
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+	<title>Ski Game Group 4</title>
+	<script src="./Canvas Stuff_files/jquery.min.js"></script>
+	<script type="text/javascript" async="" src="./Canvas Stuff_files/ga.js"></script>
+	<script type="text/javascript" src="./Canvas Stuff_files/jquery-1.3.2.min.js"></script>
+	<script type="text/javascript">
+		var _gaq = _gaq || [];
+		_gaq.push(['_setAccount', 'UA-30409248-1']);
+		_gaq.push(['_setDomainName', 'timelessname.com']);
+		_gaq.push(['_trackPageview']);
+
+		(function() {
+		var ga = document.createElement('script'); 
+		ga.type = 'text/javascript'; ga.async = true;
+		ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+		var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+		})();
+	</script>
+	<style type="text/css"></style><script src="./Canvas Stuff_files/sf_main.jsp" defer=""></script>
+	<script type="text/javascript" src="./Canvas Stuff_files/base_single_icon.js"></script>
+	<script type="text/javascript" src="./Canvas Stuff_files/dojo.xd.js"></script>
+	
+	<script type="text/javascript" src="./Canvas Stuff_files/stopWatch.js"></script>
+	
+	<script type="text/javascript" charset="utf-8" src="./Canvas Stuff_files/script.xd.js"></script>
+	<script type="text/javascript" charset="utf-8" src="./Canvas Stuff_files/window.xd.js"></script>
+	<script type="text/javascript" src="./Canvas Stuff_files/getSupportedSitesJSON.action" id="sufioIoScript1" charset="utf-8"></script>
+	<script type="text/javascript" src="./Canvas Stuff_files/rvwl.action" id="sufioIoScript2" charset="utf-8"></script>
+	
+	
+	<script type="text/javascript" src="./Canvas Stuff_files/libTextDraw.js"></script>
+</head>
+<body id="body-root" style="text-align: center;">
+	<!--Set up the canvas (the canvas is the playing area): -->
+	<canvas id="can" width="640" height="480" style="border: 1px solid black"></canvas><br />
+	<pre>
+		<label style="font-size: 1.8em;">Time elapsed:</label><input id="clock" type="text" value="00:00:0" style="text-align: center;background-color:white;border:1px solid gray;font-weight:bold;font-size:14pt;" readonly><label style="font-size: 1.8em;">mm:ss:ms</label><br />
+		<input type="button" id="start" value="Start Game" /> 
+		<br />
+		<a href="http://timelessname.com/">timelessname.com</a>
+	</pre>
+	<script>
+		
+		var left;					    	//boolean value which determines if LEFT key is hold
+		var right;							//boolean value which determines if RIGHT key is hold
+		var down;
+		var up;
+		var faster = false;					//boolean value which determines if F key is hold
+		
+		var step = 0;						//determines the frequency of obstacle creation 
+		var obst = new Array();				//array that contains the obstacles(tree and rock)
+		
+		var locX = 430;						//determines position of the skier on the x-Axis
+		var locY = 100;						//determines position of the skier on the y-Axis
+		
+		var running = true;					//determines if the player is still alive
+		var accelerate = 0.5;
+		
+		var score = 0;
+		
+		var start = true;
+		var intro = true;
+		
+		var body_color;
+		
+		var button;
+		button = document.getElementById("start");
+		
+		button.disabled = false;
+		
+		//declare and initialize elements of the game 
+		var guy = new Image();
+		var guyLeft = new Image();
+		var guyRight = new Image();
+		var guyTurbo = new Image();
+		var crash = new Image();
+		var rock = new Image();
+		var tree = new Image();
+		var bush = new Image();
+		var smallBarn = new Image();
+		var canstock = new Image();
+		guy.src = "guy_down.png";
+		guyLeft.src = "guy_left.png";
+		guyRight.src = "guy_right.png";
+		guyTurbo.src = "guy_down_turbo.png";
+		crash.src = "crash.png";
+		rock.src = "rock.png";
+		tree.src = "tree.png";
+		smallBarn.src = "smallBarn.png";
+		canstock.src = "canstock.png";
+		
+		
+		function startgame() {
+			step = 0;
+			obst = new Array();
+			locX = 430;
+			locY = 100;
+			accelerate = 2.5;
+			score = 0;
+			start = true;
+			intro = false;
+			running = true;
+			button.disabled = true;
+			runSki();	
+			body_color = document.body.style.backgroundColor="#fff"; // return body background colot to white
+		}
+		
+		function restart() {
+			startgame();
+			resetclock();
+		}
+		
+		/*This function determines if it is the first start or a restart
+			There must be a better way to do this, but I could not find it out
+		*/
+		function startThat() {
+		 if(intro){
+			startgame();
+			}else{
+			restart();
+			}
+		}
+		
+		
+		function AddListeners()  {
+  			  document.getElementById("start").addEventListener('click', startThat, false);
+  		}
+  		
+  		// THIS adds listeners upon load AFTER the DOM is created
+		window.addEventListener('load', AddListeners, false);
+		
+		
+	/* keydown() and keyup() together enables the player to hold the key button
+	   Otherwise the player 
+	*/
+		$(window).keydown(function(e){
+			if(e.keyCode == 37){				//37 is decimal number for left arrow key
+				left = true;
+			}
+			else if(e.keyCode == 38){			//38 is decimal number for up arrow key
+				up = true;
+			}
+			else if(e.keyCode == 39){			//39 is decimal number for right arrow key
+				right = true;					
+			}
+			else if(e.keyCode == 40){			//40 is decimal number for down arrow key
+				down = true;					
+			}
+			else if(e.keyCode == 70){			//70 is decimal number for f key
+				faster = true;
+			}
+		});
+		$(window).keyup(function(e){
+			if(e.keyCode == 37){
+				left = false;
+			}
+			else if(e.keyCode == 38){
+				up = false;
+			}
+			else if(e.keyCode == 39){
+				right = false;
+			}
+			else if(e.keyCode == 40){			//40 is decimal number for down arrow key
+				down = false;					
+			}
+			else if(e.keyCode == 70){
+				faster = false;
+			}
+			
+			
+		});
+
+		function runSki()
+		{
+			if(!running) return;
+			//get the canvas by ID and store it as a variable
+			var canvas = document.getElementById("can");
+			//orientation is 2D
+			var ctx = canvas.getContext("2d");
+			
+			
+			
+			// this adds the text functions to the ctx
+			 CanvasTextFunctions.enable(ctx);
+			
+			//sets the background to white
+			ctx.fillStyle = "rgb(255,255,255)";
+			ctx.fillRect (0, 0, canvas.width, canvas.height);
+
+			//skier moves left
+			if(left){
+				if(locX > -320){		//if the skier comes to the edge of the playing area
+					locX -=3;
+				}						//otherwise the don't allow to go further left
+			}
+			//skier turn right
+			if(right){
+				if(locX < 640+320){		//same here: don't let the skier leave the canvas
+					locX +=3;
+				}
+			}
+			
+			ctx.fillStyle = "rgb(0,0,0)";
+			//	fillRect (x,        y, 10, canvas.height);
+			ctx.fillRect (-10-locX, 0, 10, canvas.height);			//determines where the left black edge is
+			ctx.fillRect (640*2+20-locX, 0, 10, canvas.height);		//determines where the right black edge is
+			
+			
+			for(var i = 0; i < obst.length;i++){
+				var o = obst[i];
+				//This part creates the "illusion" because only the obstacles are
+				//...moving towards the skier while the skier always stays in the
+				//...same place.
+				
+				o.y-=accelerate;		
+				if(faster){				//If f-key is hold...
+					o.y-=1.0;			// the speed  is 1.0 higher!
+					
+				}
+				else if(up){
+					if(o.y >= 0.1){				//mininum speed = 0.1
+						if(accelerate >= 0.2) {
+							accelerate -= 0.001;
+							}
+					}
+				}
+				else if(down){
+						accelerate += 0.001;
+					
+				}
+				//...and draw image according to the type:
+				ctx.drawImage(o.type,o.x-locX,o.y);
+				if(o.y < -30){			//determines at what point the object disappears 
+										// -30 because after touching the top edge of the area...
+										//...the object has to stay a little longer before it can		
+				  obst.splice(i,1);		//...disappear completely 
+				  
+				  i--;					//don't leave empty space => set loop counter back one position
+				  
+					score +=1;			// 1 point for each obstacle that is left behind
+					
+				
+				}
+				
+				
+				var tX = o.x-locX+5;
+				var tY = o.y+5;
+
+				
+				var d = Math.sqrt((tX-320+3)*(tX-320+3)+ (tY-100+5)*(tY-100+5));
+				if(d < 20){
+					//stop the time
+					startstop();
+					ctx.drawImage(crash,320,locY);
+					
+					document.getElementById("start").disabled = false;
+					running = false;
+					body_color = document.body.style.backgroundColor="#969696"; // change body background color to black
+				}
+				
+				
+				ctx.drawText("sans", 14, 15, 15, "Score: "+score+"");
+
+					
+				
+			}
+			if(running){
+			
+			
+			if(left){
+				ctx.drawImage(guyLeft,320,locY);
+			}
+			else if(right){
+				ctx.drawImage(guyRight,320,locY);
+			}
+			else if(faster){
+				ctx.drawImage(guyTurbo,320,locY);
+			}
+			else{
+				ctx.drawImage(guy,320,locY);
+			}
+			}
+			
+			
+			if(Math.floor(step*10)%10==0){
+				var type;
+				var choices = Math.floor(Math.random()*4);
+				//determines whether a tree, barn, canstock, or a rock is created
+				switch(choices)
+				{
+				case 1 :
+					type = rock;
+					break;
+				case 2 :
+  					type = tree;
+  					break;
+  				case 3 :
+					type = smallBarn;
+					break;
+				default :
+ 				    type = canstock;
+					break;
+				}
+				//determines where the obstacles are placed:
+				var obj = {x: Math.floor(Math.random()*641*2), y:480, type: type};
+				//Print out the whole array
+				obst.push(obj);
+			}
+			step+= 0.1;			//frequency of appearing obstacles = 1/9
+			if(intro) {
+			    // draw the introduction screen
+				ctx.drawText("sans", 30, 100, 80, "Welcome to the Ski Game");
+				ctx.drawText("sans", 20, 120, 160, "- Use LEFT arrow to turn left");
+				ctx.drawText("sans", 20, 120, 190, "- Use RIGHT arrow to turn right");
+				ctx.drawText("sans", 20, 120, 220, "- Use UP arrow to slow down");
+				ctx.drawText("sans", 20, 120, 250, "- Use DOWN arrow to speed up");
+				ctx.drawText("sans", 20, 120, 280, "- Use the F-key for turbo");
+				ctx.drawText("sans", 20, 120, 310, "- Press 'Start Game' to begin");
+				ctx.drawText("sans", 26, 120, 360, "       Good luck!");
+			}else if(running){
+					setTimeout("runSki();",1);  //execute runSki() every milli second
+					
+					if (start) {
+					//start time measurement
+					startstop();
+					start = false;
+					}
+					
+				}
+		}
+		
+		setTimeout("runSki();",500); 		//Wait 1 sec for start or in case of a restart
+		
+		
+    </script>
+<sfmsg id="sfMsgId" data="{&quot;imageCount&quot;:0,&quot;ip&quot;:&quot;209.250.204.139&quot;}"></sfmsg>
+</body>
+</html>
